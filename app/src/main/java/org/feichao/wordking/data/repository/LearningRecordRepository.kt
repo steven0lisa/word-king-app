@@ -29,6 +29,18 @@ class LearningRecordRepository(private val learningRecordDao: LearningRecordDao)
     suspend fun getRecordCountByWordId(wordId: String): Int =
         learningRecordDao.getRecordCountByWordId(wordId)
 
+    // 今天做过的单词ID列表
+    suspend fun getTodayPracticedWordIds(startTime: Long): List<String> =
+        learningRecordDao.getTodayPracticedWordIds(startTime)
+
+    // 今天答错的单词ID列表
+    suspend fun getTodayWrongWordIds(startTime: Long): List<String> =
+        learningRecordDao.getTodayWrongWordIds(startTime)
+
+    // 今天做对的单词ID列表
+    suspend fun getTodayCorrectWordIds(startTime: Long): List<String> =
+        learningRecordDao.getTodayCorrectWordIds(startTime)
+
     suspend fun insertRecord(record: LearningRecord) =
         learningRecordDao.insertRecord(record)
 

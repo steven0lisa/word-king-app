@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.feichao.wordking.WordKingApplication
 import org.feichao.wordking.data.entity.LearningRecord
 import org.feichao.wordking.data.entity.Word
+import org.feichao.wordking.data.repository.LearningRecordRepository
 import org.feichao.wordking.data.repository.UserConfigRepository
 import org.feichao.wordking.data.repository.WordRepository
 import org.feichao.wordking.databinding.ActivityReviewBinding
@@ -17,12 +18,16 @@ import org.feichao.wordking.util.EbbinghausUtils
 import org.feichao.wordking.util.IdGenerator
 import org.feichao.wordking.widget.ExplosionField
 import org.feichao.wordking.widget.FecesExplosionView
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class ReviewActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityReviewBinding
     private lateinit var wordRepository: WordRepository
     private lateinit var userConfigRepository: UserConfigRepository
+    private lateinit var learningRecordRepository: LearningRecordRepository
     private lateinit var vibrateService: VibrateService
     private lateinit var explosionField: ExplosionField
     private lateinit var fecesExplosionView: FecesExplosionView
@@ -37,6 +42,10 @@ class ReviewActivity : AppCompatActivity() {
     private var questionCount = 0
     private val maxQuestions = 100  // 学习模式最大题数
 
+    // 记录今天已做过的单词ID，避免重复
+    private val todayPracticedWordIds = mutableSetOf<String>()
+    private val todayWrongWordIds = mutableSetOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityReviewBinding.inflate(layoutInflater)
@@ -50,11 +59,13 @@ class ReviewActivity : AppCompatActivity() {
         val database = WordKingApplication.instance.database
         wordRepository = WordRepository(database.wordDao())
         userConfigRepository = UserConfigRepository(database.userConfigDao())
+        learningRecordRepository = LearningRecordRepository(database.learningRecordDao())
         vibrateService = VibrateService(this)
 
         mode = intent.getStringExtra("mode") ?: "review"
 
         setupButtons()
+        loadTodayPracticeInfo()
         loadWords()
     }
 
@@ -67,6 +78,31 @@ class ReviewActivity : AppCompatActivity() {
         binding.btnNext.setOnClickListener { nextQuestion() }
     }
 
+    /**
+     * 加载今天的练习信息
+     */
+    private fun loadTodayPracticeInfo() {
+        lifecycleScope.launch {
+            val todayStart = getTodayStartTime()
+            val practiced = learningRecordRepository.getTodayPracticedWordIds(todayStart)
+            val wrong = learningRecordRepository.getTodayWrongWordIds(todayStart)
+            todayPracticedWordIds.addAll(practiced)
+            todayWrongWordIds.addAll(wrong)
+        }
+    }
+
+    /**
+     * 获取今天0点的时间戳
+     */
+    private fun getTodayStartTime(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
     private fun loadWords() {
         lifecycleScope.launch {
             val config = userConfigRepository.getUserConfigSync()
@@ -74,8 +110,11 @@ class ReviewActivity : AppCompatActivity() {
 
             when (mode) {
                 "review" -> {
-                    // 复习模式：获取需要复习的单词
-                    wordList = wordRepository.getWordsNeedingReview(language).toMutableList()
+                    // 复习模式：获取需要复习的单词，排除今天已做对的
+                    val reviewWords = wordRepository.getWordsNeedingReview(language)
+                        .filter { it.id !in todayPracticedWordIds || it.id in todayWrongWordIds }
+
+                    wordList = reviewWords.toMutableList()
                     if (wordList.isEmpty()) {
                         Toast.makeText(
                             this@ReviewActivity,
@@ -90,7 +129,10 @@ class ReviewActivity : AppCompatActivity() {
                 "learn" -> {
                     // 学习模式（旧）：获取未学习的单词
                     val limit = config?.dailyNewWordLimit ?: 300
-                    wordList = wordRepository.getUnlearnedWords(language, limit).toMutableList()
+                    wordList = wordRepository.getUnlearnedWords(language, limit)
+                        .filter { it.id !in todayPracticedWordIds }
+                        .toMutableList()
+
                     if (wordList.isEmpty()) {
                         Toast.makeText(
                             this@ReviewActivity,
@@ -104,13 +146,14 @@ class ReviewActivity : AppCompatActivity() {
                 }
                 "learning" -> {
                     // 学习模式（新）：按概率选词，不预设列表
-                    // 初始加载一轮单词
-                    loadWordsByProbability()
-                    if (wordList.isEmpty()) {
+                    val nextWord = selectWordByProbability()
+                    if (nextWord != null) {
+                        wordList.add(nextWord)
+                    } else {
                         Toast.makeText(
                             this@ReviewActivity,
-                            "词库为空，请先添加单词",
-                            Toast.LENGTH_SHORT
+                            "今天已学完，明天再来吧！",
+                            Toast.LENGTH_LONG
                         ).show()
                         finish()
                         return@launch
@@ -123,68 +166,86 @@ class ReviewActivity : AppCompatActivity() {
     }
 
     /**
-     * 按概率加载单词：50%新词 + 30%学习中 + 20%已掌握
-     */
-    private suspend fun loadWordsByProbability() {
-        val unlearned = wordRepository.getUnlearnedWords(language, 100)  // stage=0
-        val learning = wordRepository.getLearningWords(language)        // stage 1-11
-        val mastered = wordRepository.getMasteredWordsSync(language)    // stage=12
-
-        val newWordCount = (maxQuestions * 0.5).toInt().coerceAtLeast(1)
-        val learningWordCount = (maxQuestions * 0.3).toInt().coerceAtLeast(1)
-        val masteredWordCount = (maxQuestions * 0.2).toInt().coerceAtLeast(1)
-
-        wordList.clear()
-
-        // 按概率比例添加各类单词
-        repeat(minOf(newWordCount, unlearned.size)) { wordList.add(unlearned[it % unlearned.size]) }
-        repeat(minOf(learningWordCount, learning.size)) { wordList.add(learning[it % learning.size]) }
-        repeat(minOf(masteredWordCount, mastered.size)) { wordList.add(mastered[it % mastered.size]) }
-
-        wordList.shuffle()
-    }
-
-    /**
-     * 根据概率选择一个单词
+     * 智能选词算法
+     * 优先级：
+     * 1. 未学过的词（stage=0，今天没做过）：50%
+     * 2. 答错的词（今天答错）：37%
+     * 3. 少量见过且做对的词（正确次数1-5，stage 1-11，今天没做过）：10%
+     * 4. 已掌握的词（stage=12，今天没做过）：3%
      */
     private suspend fun selectWordByProbability(): Word? {
-        val unlearned = wordRepository.getUnlearnedWords(language, 50)  // stage=0
-        val learning = wordRepository.getLearningWords(language)        // stage 1-11
-        val mastered = wordRepository.getMasteredWordsSync(language)    // stage=12
+        // 获取所有类别的单词
+        val allUnlearned = wordRepository.getUnlearnedWords(language, 100)  // stage=0
+        val allLearning = wordRepository.getLearningWords(language)           // stage 1-11
+        val allMastered = wordRepository.getMasteredWordsSync(language)       // stage=12
 
-        // 如果所有类别都为空，返回null
-        if (unlearned.isEmpty() && learning.isEmpty() && mastered.isEmpty()) {
+        // 过滤掉今天已做过的单词
+        val unlearned = allUnlearned.filter { it.id !in todayPracticedWordIds }
+        val learning = allLearning.filter { it.id !in todayPracticedWordIds }
+        val mastered = allMastered.filter { it.id !in todayPracticedWordIds }
+
+        // 答错的词（从今天答错的词中选，如果不够则从学习中选正确次数少的）
+        val wrongWords = allLearning.filter { it.id in todayWrongWordIds }
+        val wrongPool = if (wrongWords.isNotEmpty()) {
+            wrongWords
+        } else {
+            // 今天没有答错的词，从学习中选正确次数少的（1-3次）
+            learning.filter { it.correctStreak in 1..3 }
+        }
+
+        // 少量见过且做对的词（正确次数1-5，今天没做过）
+        val fewCorrectWords = learning.filter {
+            it.correctStreak in 1..5 && it.id !in todayWrongWordIds
+        }
+
+        // 统计可用词池
+        val pools = mapOf(
+            "unlearned" to unlearned,
+            "wrong" to wrongPool,
+            "fewCorrect" to fewCorrectWords,
+            "mastered" to mastered
+        )
+
+        val totalAvailable = pools.values.sumOf { it.size }
+        if (totalAvailable == 0) {
             return null
         }
 
+        // 根据概率选择词池
         val random = Math.random()
 
-        return when {
-            // 50% 概率选新词
-            random < 0.5 && unlearned.isNotEmpty() -> unlearned.random()
-            // 30% 概率选学习中（累计80%）
-            random < 0.8 && learning.isNotEmpty() -> learning.random()
-            // 20% 概率选已掌握
-            mastered.isNotEmpty() -> mastered.random()
-            // 备选：学习中
-            learning.isNotEmpty() -> learning.random()
-            // 备选：新词
-            unlearned.isNotEmpty() -> unlearned.random()
+        val selectedPool = when {
+            // 50% 概率选择未学过的词
+            random < 0.5 && unlearned.isNotEmpty() -> "unlearned"
+            // 累计 87% (50% + 37%) 选择答错的词
+            random < 0.87 && wrongPool.isNotEmpty() -> "wrong"
+            // 累计 97% (87% + 10%) 选择少量见过的词
+            random < 0.97 && fewCorrectWords.isNotEmpty() -> "fewCorrect"
+            // 3% 概率选择已掌握的词
+            mastered.isNotEmpty() -> "mastered"
+            // 备选方案
+            fewCorrectWords.isNotEmpty() -> "fewCorrect"
+            wrongPool.isNotEmpty() -> "wrong"
+            unlearned.isNotEmpty() -> "unlearned"
             else -> null
         }
+
+        return selectedPool?.let { pools[it]?.random() }
     }
 
     private fun showQuestion() {
         if (currentIndex >= wordList.size) {
             if (mode == "learning") {
-                // 学习模式下，动态加载更多单词
+                // 学习模式下，动态选择下一个单词
                 lifecycleScope.launch {
-                    loadWordsByProbability()
-                    currentIndex = 0
-                    if (wordList.isEmpty()) {
-                        showCompletion()
-                    } else {
+                    val nextWord = selectWordByProbability()
+                    if (nextWord != null) {
+                        wordList.clear()
+                        wordList.add(nextWord)
+                        currentIndex = 0
                         showQuestion()
+                    } else {
+                        showCompletion()
                     }
                 }
                 return
@@ -197,7 +258,7 @@ class ReviewActivity : AppCompatActivity() {
         currentWord = wordList[currentIndex]
         questionCount++
 
-        // 更新进度（进度条已隐藏）
+        // 更新进度
         binding.tvProgress.text = if (mode == "learning") "第 $questionCount 题" else "${currentIndex + 1} / ${wordList.size}"
 
         // 显示单词
@@ -211,7 +272,7 @@ class ReviewActivity : AppCompatActivity() {
     }
 
     private fun showCompletion() {
-        binding.tvResult.text = "复习完成！"
+        binding.tvResult.text = "今天已学完！"
         binding.tvResult.visibility = View.VISIBLE
         binding.layoutOptions.visibility = View.GONE
         binding.btnNext.text = "返回"
@@ -249,7 +310,6 @@ class ReviewActivity : AppCompatActivity() {
      */
     private fun shakeButton(button: com.google.android.material.button.MaterialButton) {
         val originalTranslationX = button.translationX
-        // 使用非线性动画（加速减速）
         button.animate()
             .translationX(originalTranslationX + 20f)
             .setDuration(100)
@@ -294,6 +354,12 @@ class ReviewActivity : AppCompatActivity() {
         val selectedAnswer = options[selectedIndex]
         val correctAnswer = currentWord?.chineseTranslation ?: ""
         val isCorrect = selectedAnswer == correctAnswer
+
+        // 记录今天做过的单词
+        currentWord?.id?.let { todayPracticedWordIds.add(it) }
+        if (!isCorrect) {
+            currentWord?.id?.let { todayWrongWordIds.add(it) }
+        }
 
         // 振动反馈
         vibrateService.vibrateForAnswer(isCorrect)
@@ -341,14 +407,11 @@ class ReviewActivity : AppCompatActivity() {
         // 答错时正确答案左右摇动
         if (!isCorrect && correctButton != null) {
             shakeButton(correctButton)
-            // 答错时显示炸屎效果
             correctButton?.let {
-                // 获取按钮中心位置
                 val location = IntArray(2)
                 it.getLocationOnScreen(location)
                 val targetX = location[0] + it.width / 2f
                 val targetY = location[1] + it.height / 2f
-                android.util.Log.d("ReviewActivity", "Feces explosion to: ($targetX, $targetY)")
                 fecesExplosionView.explode(targetX, targetY)
             }
         }
@@ -405,11 +468,9 @@ class ReviewActivity : AppCompatActivity() {
                     currentWord = nextWord
                     currentIndex = 0
                     questionCount++
-                    answered = false  // 重置回答状态
 
-                    // 更新进度（隐藏进度条）
+                    // 更新进度
                     binding.tvProgress.text = "第 $questionCount 题"
-                    binding.progressBar.visibility = View.GONE
 
                     // 显示单词
                     binding.tvWord.text = currentWord?.originalWord ?: ""
@@ -432,7 +493,7 @@ class ReviewActivity : AppCompatActivity() {
         }
 
         currentIndex++
-        answered = false  // 重置回答状态
+        answered = false
         showQuestion()
     }
 }

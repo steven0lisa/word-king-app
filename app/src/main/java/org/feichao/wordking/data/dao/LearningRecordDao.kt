@@ -40,6 +40,18 @@ interface LearningRecordDao {
     @Query("SELECT COUNT(DISTINCT wordId) FROM learning_records WHERE wordId = :wordId")
     suspend fun getRecordCountByWordId(wordId: String): Int
 
+    // 今天做过的单词ID列表
+    @Query("SELECT DISTINCT wordId FROM learning_records WHERE reviewTime >= :startTime")
+    suspend fun getTodayPracticedWordIds(startTime: Long): List<String>
+
+    // 今天答错的单词ID列表
+    @Query("SELECT DISTINCT wordId FROM learning_records WHERE reviewTime >= :startTime AND isCorrect = 0")
+    suspend fun getTodayWrongWordIds(startTime: Long): List<String>
+
+    // 今天做对的单词ID列表
+    @Query("SELECT DISTINCT wordId FROM learning_records WHERE reviewTime >= :startTime AND isCorrect = 1")
+    suspend fun getTodayCorrectWordIds(startTime: Long): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: LearningRecord)
 

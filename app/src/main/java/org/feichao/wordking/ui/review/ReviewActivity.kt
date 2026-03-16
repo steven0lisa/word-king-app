@@ -42,10 +42,6 @@ class ReviewActivity : AppCompatActivity() {
     private var questionCount = 0
     private val maxQuestions = 100  // 学习模式最大题数
 
-    // 记录今天已做过的单词ID，避免重复
-    private val todayPracticedWordIds = mutableSetOf<String>()
-    private val todayWrongWordIds = mutableSetOf<String>()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityReviewBinding.inflate(layoutInflater)
@@ -65,7 +61,6 @@ class ReviewActivity : AppCompatActivity() {
         mode = intent.getStringExtra("mode") ?: "review"
 
         setupButtons()
-        loadTodayPracticeInfo()
         loadWords()
     }
 
@@ -76,19 +71,6 @@ class ReviewActivity : AppCompatActivity() {
         binding.btnOption4.setOnClickListener { handleAnswer(3) }
 
         binding.btnNext.setOnClickListener { nextQuestion() }
-    }
-
-    /**
-     * 加载今天的练习信息
-     */
-    private fun loadTodayPracticeInfo() {
-        lifecycleScope.launch {
-            val todayStart = getTodayStartTime()
-            val practiced = learningRecordRepository.getTodayPracticedWordIds(todayStart)
-            val wrong = learningRecordRepository.getTodayWrongWordIds(todayStart)
-            todayPracticedWordIds.addAll(practiced)
-            todayWrongWordIds.addAll(wrong)
-        }
     }
 
     /**
@@ -111,8 +93,13 @@ class ReviewActivity : AppCompatActivity() {
             when (mode) {
                 "review" -> {
                     // 复习模式：获取需要复习的单词，排除今天已做对的
+                    val todayStart = getTodayStartTime()
+                    val todayCorrectIds = learningRecordRepository.getTodayCorrectWordIds(todayStart)
+                    val todayWrongIds = learningRecordRepository.getTodayWrongWordIds(todayStart)
+                    val todayPracticedIds = todayCorrectIds + todayWrongIds
+
                     val reviewWords = wordRepository.getWordsNeedingReview(language)
-                        .filter { it.id !in todayPracticedWordIds || it.id in todayWrongWordIds }
+                        .filter { it.id !in todayPracticedIds || it.id in todayWrongIds }
 
                     wordList = reviewWords.toMutableList()
                     if (wordList.isEmpty()) {
@@ -129,8 +116,11 @@ class ReviewActivity : AppCompatActivity() {
                 "learn" -> {
                     // 学习模式（旧）：获取未学习的单词
                     val limit = config?.dailyNewWordLimit ?: 300
+                    val todayStart = getTodayStartTime()
+                    val todayPracticedIds = learningRecordRepository.getTodayPracticedWordIds(todayStart)
+
                     wordList = wordRepository.getUnlearnedWords(language, limit)
-                        .filter { it.id !in todayPracticedWordIds }
+                        .filter { it.id !in todayPracticedIds }
                         .toMutableList()
 
                     if (wordList.isEmpty()) {
@@ -167,6 +157,8 @@ class ReviewActivity : AppCompatActivity() {
 
     /**
      * 智能选词算法
+     * 每次都从数据库实时查询今天做过的词，确保不会重复
+     *
      * 优先级：
      * 1. 未学过的词（stage=0，今天没做过）：50%
      * 2. 答错的词（今天答错）：37%
@@ -174,28 +166,34 @@ class ReviewActivity : AppCompatActivity() {
      * 4. 已掌握的词（stage=12，今天没做过）：3%
      */
     private suspend fun selectWordByProbability(): Word? {
+        // 实时从数据库获取今天做过的词
+        val todayStart = getTodayStartTime()
+        val todayPracticedIds = learningRecordRepository.getTodayPracticedWordIds(todayStart).toSet()
+        val todayWrongIds = learningRecordRepository.getTodayWrongWordIds(todayStart).toSet()
+
         // 获取所有类别的单词
         val allUnlearned = wordRepository.getUnlearnedWords(language, 100)  // stage=0
         val allLearning = wordRepository.getLearningWords(language)           // stage 1-11
         val allMastered = wordRepository.getMasteredWordsSync(language)       // stage=12
 
-        // 过滤掉今天已做过的单词
-        val unlearned = allUnlearned.filter { it.id !in todayPracticedWordIds }
-        val learning = allLearning.filter { it.id !in todayPracticedWordIds }
-        val mastered = allMastered.filter { it.id !in todayPracticedWordIds }
+        // 过滤掉今天已做过的单词（使用实时查询的数据）
+        val unlearned = allUnlearned.filter { it.id !in todayPracticedIds }
+        val learning = allLearning.filter { it.id !in todayPracticedIds }
+        val mastered = allMastered.filter { it.id !in todayPracticedIds }
 
-        // 答错的词（从今天答错的词中选，如果不够则从学习中选正确次数少的）
-        val wrongWords = allLearning.filter { it.id in todayWrongWordIds }
-        val wrongPool = if (wrongWords.isNotEmpty()) {
-            wrongWords
-        } else {
-            // 今天没有答错的词，从学习中选正确次数少的（1-3次）
-            learning.filter { it.correctStreak in 1..3 }
-        }
+        // 答错的词池（优先今天答错的，如果没有则选正确次数少的）
+        val wrongPool = allLearning
+            .filter { it.id in todayWrongIds }
+            .ifEmpty {
+                // 今天没有答错的词，从学习中选正确次数少的（1-3次）
+                learning.filter { it.correctStreak in 1..3 }
+            }
 
-        // 少量见过且做对的词（正确次数1-5，今天没做过）
+        // 少量见过且做对的词（正确次数1-5，今天没做过，且不在错误池中）
         val fewCorrectWords = learning.filter {
-            it.correctStreak in 1..5 && it.id !in todayWrongWordIds
+            it.correctStreak in 1..5 &&
+            it.id !in todayWrongIds &&
+            it.id !in wrongPool.map { w -> w.id }
         }
 
         // 统计可用词池
@@ -274,37 +272,38 @@ class ReviewActivity : AppCompatActivity() {
     }
 
     private fun showCompletion() {
-        binding.tvResult.text = "今天已学完！"
+        binding.tvResult.text = if (mode == "learning") "今天已学完！" else "复习完成！"
         binding.tvResult.visibility = View.VISIBLE
         binding.layoutOptions.visibility = View.GONE
         binding.btnNext.text = "返回"
         binding.btnNext.visibility = View.VISIBLE
     }
 
-    private fun generateOptions() {
-        lifecycleScope.launch {
-            val correct = currentWord?.chineseTranslation ?: ""
+    /**
+     * 同步生成选项（在协程内调用）
+     */
+    private suspend fun generateOptionsSync() {
+        val correct = currentWord?.chineseTranslation ?: ""
 
-            // 获取干扰项
-            val lang = currentWord?.languageCode ?: "en"
-            val allWords = wordRepository.getAllWordsSync().filter {
-                it.languageCode == lang && it.id != currentWord?.id
-            }.toMutableList().apply { shuffle() }.take(3)
+        // 获取干扰项
+        val lang = currentWord?.languageCode ?: "en"
+        val allWords = wordRepository.getAllWordsSync().filter {
+            it.languageCode == lang && it.id != currentWord?.id
+        }.toMutableList().apply { shuffle() }.take(3)
 
-            val wrongOptions = allWords.map { it.chineseTranslation }
+        val wrongOptions = allWords.map { it.chineseTranslation }
 
-            // 合并并打乱
-            options = (listOf(correct) + wrongOptions).shuffled()
+        // 合并并打乱
+        options = (listOf(correct) + wrongOptions).shuffled()
 
-            // 显示选项
-            binding.btnOption1.text = options.getOrElse(0) { "" }
-            binding.btnOption2.text = options.getOrElse(1) { "" }
-            binding.btnOption3.text = options.getOrElse(2) { "" }
-            binding.btnOption4.text = options.getOrElse(3) { "" }
+        // 显示选项
+        binding.btnOption1.text = options.getOrElse(0) { "" }
+        binding.btnOption2.text = options.getOrElse(1) { "" }
+        binding.btnOption3.text = options.getOrElse(2) { "" }
+        binding.btnOption4.text = options.getOrElse(3) { "" }
 
-            // 重置按钮状态
-            resetButtonStyles()
-        }
+        // 重置按钮状态
+        resetButtonStyles()
     }
 
     /**
@@ -356,12 +355,6 @@ class ReviewActivity : AppCompatActivity() {
         val selectedAnswer = options[selectedIndex]
         val correctAnswer = currentWord?.chineseTranslation ?: ""
         val isCorrect = selectedAnswer == correctAnswer
-
-        // 记录今天做过的单词
-        currentWord?.id?.let { todayPracticedWordIds.add(it) }
-        if (!isCorrect) {
-            currentWord?.id?.let { todayWrongWordIds.add(it) }
-        }
 
         // 振动反馈
         vibrateService.vibrateForAnswer(isCorrect)
@@ -501,32 +494,5 @@ class ReviewActivity : AppCompatActivity() {
         currentIndex++
         answered = false
         showQuestion()
-    }
-
-    /**
-     * 同步生成选项（在协程内调用）
-     */
-    private suspend fun generateOptionsSync() {
-        val correct = currentWord?.chineseTranslation ?: ""
-
-        // 获取干扰项
-        val lang = currentWord?.languageCode ?: "en"
-        val allWords = wordRepository.getAllWordsSync().filter {
-            it.languageCode == lang && it.id != currentWord?.id
-        }.toMutableList().apply { shuffle() }.take(3)
-
-        val wrongOptions = allWords.map { it.chineseTranslation }
-
-        // 合并并打乱
-        options = (listOf(correct) + wrongOptions).shuffled()
-
-        // 显示选项
-        binding.btnOption1.text = options.getOrElse(0) { "" }
-        binding.btnOption2.text = options.getOrElse(1) { "" }
-        binding.btnOption3.text = options.getOrElse(2) { "" }
-        binding.btnOption4.text = options.getOrElse(3) { "" }
-
-        // 重置按钮状态
-        resetButtonStyles()
     }
 }

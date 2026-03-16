@@ -11,7 +11,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -31,7 +31,7 @@ class WordListFragment : Fragment() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var tvEmpty: TextView
     private lateinit var tabLayout: TabLayout
-    private lateinit var fabAiGenerate: FloatingActionButton
+    private lateinit var btnAiGenerate: MaterialButton
     private lateinit var progressAi: ProgressBar
 
     private var currentTab = 0
@@ -57,7 +57,7 @@ class WordListFragment : Fragment() {
         recyclerView = view.findViewById(R.id.recycler_view)
         tvEmpty = view.findViewById(R.id.tv_empty)
         tabLayout = view.findViewById(R.id.tab_layout)
-        fabAiGenerate = view.findViewById(R.id.fab_ai_generate)
+        btnAiGenerate = view.findViewById(R.id.btn_ai_generate)
         progressAi = view.findViewById(R.id.progress_ai)
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
@@ -74,7 +74,7 @@ class WordListFragment : Fragment() {
         })
 
         // AI生成按钮点击
-        fabAiGenerate.setOnClickListener {
+        btnAiGenerate.setOnClickListener {
             generateWords()
         }
 
@@ -108,7 +108,7 @@ class WordListFragment : Fragment() {
     }
 
     private fun generateWords() {
-        fabAiGenerate.isEnabled = false
+        btnAiGenerate.isEnabled = false
         progressAi.visibility = View.VISIBLE
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -145,7 +145,7 @@ class WordListFragment : Fragment() {
                 if (!isAdded) return@launch
 
                 progressAi.visibility = View.GONE
-                fabAiGenerate.isEnabled = true
+                btnAiGenerate.isEnabled = true
 
                 // 保存到数据库（去重）
                 if (allNewWords.isNotEmpty()) {
@@ -163,7 +163,7 @@ class WordListFragment : Fragment() {
             } catch (e: Exception) {
                 if (isAdded) {
                     progressAi.visibility = View.GONE
-                    fabAiGenerate.isEnabled = true
+                    btnAiGenerate.isEnabled = true
                     Toast.makeText(requireContext(), "生成失败：${e.message}", Toast.LENGTH_LONG).show()
                 }
             }

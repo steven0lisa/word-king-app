@@ -1,7 +1,9 @@
 package org.feichao.wordking
 
 import android.os.Bundle
+import android.view.View
 import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
@@ -100,22 +102,33 @@ class MainActivity : AppCompatActivity() {
 
     private fun showLanguagePopupMenu(anchor: android.view.View) {
         val popup = PopupMenu(this, anchor)
+        val languageMenuItems = mutableMapOf<Int, String>()  // itemId -> languageCode
+
         Constants.SUPPORT_LANGUAGES.forEach { code ->
             val name = Constants.LANGUAGE_NAMES[code] ?: code
             val flag = languageFlags[code] ?: ""
-            popup.menu.add("$flag $name")
+            val itemId = View.generateViewId()
+            languageMenuItems[itemId] = code
+            popup.menu.add(0, itemId, 0, "$flag $name")
         }
 
         popup.setOnMenuItemClickListener { item ->
-            val selectedText = item.title.toString()
-            val languageName = selectedText.substring(2).trim()
-            val selectedCode = Constants.LANGUAGE_NAMES.entries
-                .find { it.value == languageName }?.key ?: return@setOnMenuItemClickListener false
-
-            lifecycleScope.launch {
-                userConfigRepository.updateCurrentLanguage(selectedCode)
+            val selectedCode = languageMenuItems[item.itemId]
+            if (selectedCode != null) {
+                lifecycleScope.launch {
+                    userConfigRepository.updateCurrentLanguage(selectedCode)
+                    // 显示Toast提示
+                    val langName = Constants.LANGUAGE_NAMES[selectedCode]
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        "已切换到 $langName",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+                true
+            } else {
+                false
             }
-            true
         }
 
         popup.show()

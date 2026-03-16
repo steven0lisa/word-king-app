@@ -26,7 +26,7 @@ class SettingsFragment : Fragment() {
         GitConfigActivity::class.java,
         AiConfigActivity::class.java,
         GeneralConfigActivity::class.java,
-        null
+        AboutActivity::class.java
     )
 
     override fun onCreateView(

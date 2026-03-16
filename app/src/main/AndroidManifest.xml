@@ -67,6 +67,12 @@
             android:exported="false"
             android:theme="@style/Theme.WordKing" />
 
+        <!-- About Activity -->
+        <activity
+            android:name=".ui.settings.AboutActivity"
+            android:exported="false"
+            android:theme="@style/Theme.WordKing" />
+
         <!-- File Provider for APK installation -->
         <provider
             android:name="androidx.core.content.FileProvider"

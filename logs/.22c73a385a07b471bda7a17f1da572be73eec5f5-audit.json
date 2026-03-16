@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/steven0lisa/work/personal/word-king-app/logs/.22c73a385a07b471bda7a17f1da572be73eec5f5-audit.json",
+    "files": [
+        {
+            "date": 1773638023348,
+            "name": "/Users/steven0lisa/work/personal/word-king-app/logs/mcp-puppeteer-2026-03-16.log",
+            "hash": "77c9e1e8dba5a5eac8fde9c66fac70d4e6bbce3eb6cf2b0c36ea86414cfa7d49"
+        }
+    ],
+    "hashType": "sha256"
+}

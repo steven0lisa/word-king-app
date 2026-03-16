@@ -267,8 +267,10 @@ class ReviewActivity : AppCompatActivity() {
         binding.layoutOptions.visibility = View.VISIBLE
         binding.btnNext.visibility = View.GONE
 
-        // 生成选项
-        generateOptions()
+        // 生成选项（异步）
+        lifecycleScope.launch {
+            generateOptionsSync()
+        }
     }
 
     private fun showCompletion() {
@@ -465,12 +467,15 @@ class ReviewActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 val nextWord = selectWordByProbability()
                 if (nextWord != null) {
+                    // 重置状态
+                    answered = false
                     currentWord = nextWord
                     currentIndex = 0
                     questionCount++
 
                     // 更新进度
                     binding.tvProgress.text = "第 $questionCount 题"
+                    binding.progressBar.visibility = View.GONE
 
                     // 显示单词
                     binding.tvWord.text = currentWord?.originalWord ?: ""
@@ -478,7 +483,8 @@ class ReviewActivity : AppCompatActivity() {
                     binding.layoutOptions.visibility = View.VISIBLE
                     binding.btnNext.visibility = View.GONE
 
-                    generateOptions()
+                    // 生成选项（在协程中）
+                    generateOptionsSync()
                 } else {
                     // 没有更多单词可学
                     showCompletion()
@@ -495,5 +501,32 @@ class ReviewActivity : AppCompatActivity() {
         currentIndex++
         answered = false
         showQuestion()
+    }
+
+    /**
+     * 同步生成选项（在协程内调用）
+     */
+    private suspend fun generateOptionsSync() {
+        val correct = currentWord?.chineseTranslation ?: ""
+
+        // 获取干扰项
+        val lang = currentWord?.languageCode ?: "en"
+        val allWords = wordRepository.getAllWordsSync().filter {
+            it.languageCode == lang && it.id != currentWord?.id
+        }.toMutableList().apply { shuffle() }.take(3)
+
+        val wrongOptions = allWords.map { it.chineseTranslation }
+
+        // 合并并打乱
+        options = (listOf(correct) + wrongOptions).shuffled()
+
+        // 显示选项
+        binding.btnOption1.text = options.getOrElse(0) { "" }
+        binding.btnOption2.text = options.getOrElse(1) { "" }
+        binding.btnOption3.text = options.getOrElse(2) { "" }
+        binding.btnOption4.text = options.getOrElse(3) { "" }
+
+        // 重置按钮状态
+        resetButtonStyles()
     }
 }

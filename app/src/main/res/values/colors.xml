@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Color Palette -->
+    <color name="charcoal_blue">#264653</color>
+    <color name="verdigris">#2A9D8F</color>
+    <color name="tuscan_sun">#E9C46A</color>
+    <color name="sandy_brown">#F4A261</color>
+    <color name="burnt_peach">#E76F51</color>
+
+    <!-- Primary colors -->
+    <color name="primary">#2A9D8F</color>
+    <color name="primary_variant">#264653</color>
+    <color name="on_primary">#FFFFFF</color>
+
+    <!-- Secondary colors -->
+    <color name="secondary">#E9C46A</color>
+    <color name="secondary_variant">#F4A261</color>
+    <color name="on_secondary">#264653</color>
+
+    <!-- Background colors -->
+    <color name="background">#FFFFFF</color>
+    <color name="on_background">#264653</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="on_surface">#264653</color>
+
+    <!-- Error -->
+    <color name="error">#E76F51</color>
+    <color name="on_error">#FFFFFF</color>
+
+    <!-- Custom colors -->
+    <color name="correct_green">#2A9D8F</color>
+    <color name="incorrect_red">#E76F51</color>
+    <color name="warning_orange">#F4A261</color>
+
+    <!-- Card colors -->
+    <color name="card_background">#FAFAFA</color>
+    <color name="card_stroke">#E0E0E0</color>
+
+    <!-- Heatmap colors (GitLab style) -->
+    <color name="heatmap_level_0">#EBEDF0</color>
+    <color name="heatmap_level_1">#9BE9A8</color>
+    <color name="heatmap_level_2">#40C463</color>
+    <color name="heatmap_level_3">#30A14E</color>
+    <color name="heatmap_level_4">#216E39</color>
+
+    <!-- Heatmap colors (short names) -->
+    <color name="heat_level_1">#9BE9A8</color>
+    <color name="heat_level_2">#40C463</color>
+    <color name="heat_level_3">#30A14E</color>
+    <color name="heat_level_4">#216E39</color>
+
+    <!-- Stage colors -->
+    <color name="stage_0">#9E9E9E</color>
+    <color name="stage_1">#E76F51</color>
+    <color name="stage_2">#F4A261</color>
+    <color name="stage_3">#E9C46A</color>
+    <color name="stage_4">#E9C46A</color>
+    <color name="stage_5">#E9C46A</color>
+    <color name="stage_6">#2A9D8F</color>
+    <color name="stage_7">#2A9D8F</color>
+    <color name="stage_8">#2A9D8F</color>
+    <color name="stage_9">#264653</color>
+    <color name="stage_10">#264653</color>
+    <color name="stage_11">#264653</color>
+    <color name="stage_12">#264653</color>
+
+    <!-- Text colors -->
+    <color name="text_primary">#264653</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_hint">#9CA3AF</color>
+
+    <!-- Divider -->
+    <color name="divider">#E5E7EB</color>
+</resources>

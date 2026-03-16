@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="org.feichao.wordking.ui.home.HomeFragment"
+        android:label="@string/nav_home">
+        <action
+            android:id="@+id/action_home_to_review"
+            app:destination="@id/reviewActivity" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/wordListFragment"
+        android:name="org.feichao.wordking.ui.wordlist.WordListFragment"
+        android:label="@string/nav_word_list" />
+
+    <fragment
+        android:id="@+id/statsFragment"
+        android:name="org.feichao.wordking.ui.stats.StatsFragment"
+        android:label="@string/nav_stats" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="org.feichao.wordking.ui.settings.SettingsFragment"
+        android:label="@string/nav_settings">
+        <action
+            android:id="@+id/action_settings_to_git_config"
+            app:destination="@id/gitConfigActivity" />
+        <action
+            android:id="@+id/action_settings_to_ai_config"
+            app:destination="@id/aiConfigActivity" />
+        <action
+            android:id="@+id/action_settings_to_general_config"
+            app:destination="@id/generalConfigActivity" />
+    </fragment>
+
+    <activity
+        android:id="@+id/reviewActivity"
+        android:name="org.feichao.wordking.ui.review.ReviewActivity"
+        android:label="复习" />
+
+    <activity
+        android:id="@+id/gitConfigActivity"
+        android:name="org.feichao.wordking.ui.settings.GitConfigActivity"
+        android:label="@string/git_config" />
+
+    <activity
+        android:id="@+id/aiConfigActivity"
+        android:name="org.feichao.wordking.ui.settings.AiConfigActivity"
+        android:label="@string/ai_config" />
+
+    <activity
+        android:id="@+id/generalConfigActivity"
+        android:name="org.feichao.wordking.ui.settings.GeneralConfigActivity"
+        android:label="@string/general_config" />
+
+</navigation>

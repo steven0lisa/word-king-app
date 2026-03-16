@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">词王</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">首页</string>
+    <string name="nav_word_list">单词</string>
+    <string name="nav_stats">统计</string>
+    <string name="nav_settings">设置</string>
+    <string name="nav_my">我的</string>
+
+    <!-- Main Screen -->
+    <string name="today_review">今日复习</string>
+    <string name="new_words">新单词</string>
+    <string name="start_review">开始复习</string>
+    <string name="learn_new">学习新单词</string>
+    <string name="start_learning">开始学习</string>
+    <string name="ai_generate">AI生成</string>
+    <string name="word_count">单词数</string>
+    <string name="words_to_review">待复习</string>
+    <string name="words_learned">已学习</string>
+    <string name="words_mastered">已掌握</string>
+    <string name="no_words_to_review">今日无待复习单词</string>
+
+    <!-- Review Screen -->
+    <string name="correct">正确！</string>
+    <string name="incorrect">错误，正确答案：%s</string>
+    <string name="review_complete">复习完成！</string>
+    <string name="next_question">下一题</string>
+    <string name="question_number">第 %1$d / %2$d 题</string>
+
+    <!-- Word List Screen -->
+    <string name="tab_all">全部</string>
+    <string name="tab_unlearned">未学</string>
+    <string name="tab_learning">学习中</string>
+    <string name="tab_mastered">已掌握</string>
+    <string name="search_hint">搜索单词...</string>
+    <string name="no_words">暂无单词</string>
+    <string name="no_unlearned_words">暂无未学习单词</string>
+
+    <!-- Stats Screen -->
+    <string name="today">今日</string>
+    <string name="this_week">本周</string>
+    <string name="this_month">本月</string>
+    <string name="total">总计</string>
+    <string name="accuracy">正确率</string>
+    <string name="learning_heatmap">学习热力图</string>
+    <string name="language_mastered">各语言掌握情况</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_git">Git 同步配置</string>
+    <string name="settings_ai">AI 配置</string>
+    <string name="settings_general">通用设置</string>
+    <string name="settings_about">关于</string>
+    <string name="git_config">Git 配置</string>
+    <string name="ai_config">AI 配置</string>
+    <string name="general_config">通用设置</string>
+    <string name="about">关于</string>
+
+    <!-- Git Config -->
+    <string name="git_repo_url">仓库地址</string>
+    <string name="git_repo_url_hint">https://gitee.com/username/word-king-data</string>
+    <string name="git_ssh_key">SSH 密钥</string>
+    <string name="git_ssh_key_hint">请粘贴 SSH 私钥内容</string>
+    <string name="test_connection">测试连接</string>
+    <string name="sync_now">立即同步</string>
+    <string name="sync_success">同步成功</string>
+    <string name="sync_failed">同步失败：%s</string>
+    <string name="git_not_configured">请先配置 Git 仓库信息</string>
+
+    <!-- AI Config -->
+    <string name="ai_api_url">API 地址</string>
+    <string name="ai_api_url_hint">https://open.bigmodel.cn/api/paas/v4/chat/completions</string>
+    <string name="ai_api_key">API Key</string>
+    <string name="ai_api_key_hint">请输入 API Key</string>
+    <string name="ai_model">模型</string>
+    <string name="ai_model_hint">glm-5</string>
+    <string name="generate_count">生成数量</string>
+    <string name="manual_generate">批量生成</string>
+    <string name="generate_success">生成成功！新增 %d 个单词</string>
+    <string name="generate_failed">生成失败：%s</string>
+    <string name="ai_not_configured">请先配置 AI 信息</string>
+
+    <!-- General Config -->
+    <string name="daily_limit">每日新单词上限</string>
+    <string name="daily_limit_hint">300</string>
+    <string name="vibrate_enabled">振动反馈</string>
+    <string name="auto_generate">自动生成单词</string>
+    <string name="auto_check_update">启动时检查更新</string>
+    <string name="local_backup">本地备份</string>
+    <string name="local_restore">恢复数据</string>
+    <string name="save">保存</string>
+    <string name="settings_saved">设置已保存</string>
+
+    <!-- Language -->
+    <string name="language_en">英语</string>
+    <string name="language_id">印尼语</string>
+    <string name="language_th">泰语</string>
+    <string name="language_ko">韩语</string>
+    <string name="language_ja">日语</string>
+    <string name="language_es">西班牙语</string>
+    <string name="language_pt">葡萄牙语</string>
+    <string name="language_fr">法语</string>
+
+    <!-- Update -->
+    <string name="check_update">检查更新</string>
+    <string name="new_version_available">发现新版本 %s</string>
+    <string name="current_version">当前版本：%s</string>
+    <string name="no_new_version">当前已是最新版本</string>
+    <string name="download_failed">下载失败：%s</string>
+    <string name="downloading">正在下载...</string>
+    <string name="install">安装</string>
+    <string name="need_install_permission">需要安装权限</string>
+    <string name="open_install_permission">请开启允许安装应用权限</string>
+
+    <!-- Common -->
+    <string name="loading">加载中...</string>
+    <string name="error">错误</string>
+    <string name="retry">重试</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">确定</string>
+    <string name="ok">好的</string>
+    <string name="success">成功</string>
+    <string name="failed">失败</string>
+    <string name="no_network">无网络连接</string>
+    <string name="please_wait">请稍候...</string>
+    <string name="version">版本 %s</string>
+
+    <!-- About -->
+    <string name="about_title">词王 WordKing</string>
+    <string name="about_description">多语言单词学习APP，基于艾宾浩斯遗忘曲线</string>
+    <string name="privacy_policy">隐私政策</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">欢迎使用词王</string>
+    <string name="welcome_subtitle">智能复习，多端同步</string>
+    <string name="get_started">开始使用</string>
+    <string name="skip">跳过</string>
+    <string name="next">下一步</string>
+</resources>

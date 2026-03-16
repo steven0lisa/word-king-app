@@ -58,6 +58,9 @@ class GitSyncService(private val context: Context) {
             // 备份本地数据
             backupLocalData(words, records, syncMeta)
 
+            // 先导出本地同步文件（确保文件存在）
+            exportLocalSyncFiles(words, records, syncMeta)
+
             // 初始化或更新Git仓库
             val git = initOrOpenGit(repoUrl, token, branch)
 
@@ -66,9 +69,6 @@ class GitSyncService(private val context: Context) {
 
             // 合并远程数据到本地
             mergeSyncFiles()
-
-            // 导出本地同步文件
-            exportLocalSyncFiles(words, records, syncMeta)
 
             // 提交并推送更改
             commitAndPush(git, branch, token)

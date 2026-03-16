@@ -10,6 +10,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.feichao.wordking.R
 import org.feichao.wordking.WordKingApplication
@@ -31,7 +36,9 @@ class HomeFragment : Fragment() {
     private lateinit var wordRepository: WordRepository
     private lateinit var userConfigRepository: UserConfigRepository
 
-    private var currentLanguage = Constants.Defaults.DEFAULT_LANGUAGE
+    // 使用 StateFlow 缓存当前语言，用于触发数据重新加载
+    private val currentLanguageFlow = MutableStateFlow(Constants.Defaults.DEFAULT_LANGUAGE)
+
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     override fun onCreateView(
@@ -74,47 +81,65 @@ class HomeFragment : Fragment() {
     }
 
     private fun observeData() {
-        // 观察用户配置
+        // 观察用户配置变化
         viewLifecycleOwner.lifecycleScope.launch {
             userConfigRepository.getUserConfig().collect { config ->
                 config?.let {
-                    currentLanguage = it.currentLanguage
+                    // 更新当前语言
+                    currentLanguageFlow.emit(it.currentLanguage)
 
                     // 检查并自动生成单词
                     if (it.autoGenerateWord) {
-                        checkAndGenerateWords()
+                        checkAndGenerateWords(it.currentLanguage)
                     }
                 }
             }
         }
 
-        // 加载统计数据
-        loadStats()
+        // 观察统计数据变化 - 使用 combine 监听所有计数变化
+        viewLifecycleOwner.lifecycleScope.launch {
+            currentLanguageFlow.collect { language ->
+                // 为每个语言创建新的Flow监听
+                observeWordStats(language)
+            }
+        }
     }
 
-    private fun loadStats() {
+    /**
+     * 监听单词统计数据变化
+     * 当数据变化时自动更新UI
+     */
+    private fun observeWordStats(languageCode: String) {
         viewLifecycleOwner.lifecycleScope.launch {
-            // 待复习数量
-            val reviewWords = wordRepository.getWordsNeedingReview(currentLanguage)
+            // 合并所有计数Flow
+            combine(
+                wordRepository.getUnlearnedWordCountFlow(languageCode),
+                wordRepository.getLearningWordCountFlow(languageCode),
+                wordRepository.getMasteredWordCountFlow(languageCode),
+                wordRepository.getTotalWordCountFlow(languageCode)
+            ) { unlearned, learning, mastered, total ->
+                // 在后台线程计算完成后，在主线程更新UI
+                Pair(Triple(unlearned, learning, mastered), total)
+            }.collect { (stats, total) ->
+                // 更新UI
+                binding.tvLearnedCount.text = stats.second.toString()
+                binding.tvMasteredCount.text = stats.third.toString()
+                binding.tvTotalCount.text = total.toString()
+
+                // 待复习数量需要单独计算（基于时间）
+                updateReviewCount(languageCode)
+            }
+        }
+    }
+
+    /**
+     * 更新待复习数量
+     * 这个需要基于时间动态计算
+     */
+    private fun updateReviewCount(languageCode: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val reviewWords = wordRepository.getWordsNeedingReview(languageCode)
             binding.tvReviewCount.text = reviewWords.size.toString()
-
-            // 已学习数量
-            val learningCount = wordRepository.getLearningWordCount(currentLanguage)
-            binding.tvLearnedCount.text = learningCount.toString()
-
-            // 已掌握数量
-            val masteredCount = wordRepository.getMasteredWordCount(currentLanguage)
-            binding.tvMasteredCount.text = masteredCount.toString()
-
-            // 词库总量
-            val totalCount = wordRepository.getTotalWordCount(currentLanguage)
-            binding.tvTotalCount.text = totalCount.toString()
-
-            // 加载最近7天正确率
-            loadAccuracy()
-
-            // 加载热力图数据
-            loadHeatmapData()
         }
     }
 
@@ -156,20 +181,20 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun checkAndGenerateWords() {
+    private fun checkAndGenerateWords(languageCode: String) {
         viewLifecycleOwner.lifecycleScope.launch {
-            val unlearnedCount = wordRepository.getUnlearnedWordCount(currentLanguage)
+            val unlearnedCount = wordRepository.getUnlearnedWordCount(languageCode)
             if (unlearnedCount < Constants.AiConfig.AUTO_GENERATE_THRESHOLD) {
                 // 自动生成
                 val result = org.feichao.wordking.service.AiGenerateService(requireContext()).generateWords(
-                    currentLanguage,
+                    languageCode,
                     Constants.AiConfig.DEFAULT_AUTO_GENERATE_COUNT,
                     "AUTO"
                 )
                 result.onSuccess { words ->
                     if (words.isNotEmpty()) {
+                        // 插入单词后，Flow会自动触发UI更新
                         wordRepository.insertWords(words)
-                        loadStats()
                         Toast.makeText(
                             requireContext(),
                             "已自动补充${words.size}个单词",
@@ -183,7 +208,10 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        loadStats()
+        // 刷新正确率和热力图数据
+        loadAccuracy()
+        loadHeatmapData()
+        // 其他统计数据会通过Flow自动更新
     }
 
     override fun onDestroyView() {

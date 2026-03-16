@@ -42,6 +42,19 @@ class WordRepository(private val wordDao: WordDao) {
     suspend fun getTotalWordCount(languageCode: String): Int =
         wordDao.getTotalWordCount(languageCode)
 
+    // Flow 版本的计数方法 - 用于监听数据变化
+    fun getUnlearnedWordCountFlow(languageCode: String): Flow<Int> =
+        wordDao.getUnlearnedWordCountFlow(languageCode)
+
+    fun getLearningWordCountFlow(languageCode: String): Flow<Int> =
+        wordDao.getLearningWordCountFlow(languageCode)
+
+    fun getMasteredWordCountFlow(languageCode: String): Flow<Int> =
+        wordDao.getMasteredWordCountFlow(languageCode)
+
+    fun getTotalWordCountFlow(languageCode: String): Flow<Int> =
+        wordDao.getTotalWordCountFlow(languageCode)
+
     suspend fun getAllOriginalWords(languageCode: String): List<String> =
         wordDao.getAllOriginalWords(languageCode)
 

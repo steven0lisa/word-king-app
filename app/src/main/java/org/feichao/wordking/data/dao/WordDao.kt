@@ -43,6 +43,19 @@ interface WordDao {
     @Query("SELECT COUNT(*) FROM words WHERE languageCode = :languageCode")
     suspend fun getTotalWordCount(languageCode: String): Int
 
+    // Flow 版本的计数方法 - 用于监听数据变化
+    @Query("SELECT COUNT(*) FROM words WHERE stage = 0 AND languageCode = :languageCode")
+    fun getUnlearnedWordCountFlow(languageCode: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM words WHERE stage > 0 AND stage < 12 AND languageCode = :languageCode")
+    fun getLearningWordCountFlow(languageCode: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM words WHERE stage = 12 AND languageCode = :languageCode")
+    fun getMasteredWordCountFlow(languageCode: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM words WHERE languageCode = :languageCode")
+    fun getTotalWordCountFlow(languageCode: String): Flow<Int>
+
     @Query("SELECT DISTINCT originalWord FROM words WHERE languageCode = :languageCode")
     suspend fun getAllOriginalWords(languageCode: String): List<String>
 

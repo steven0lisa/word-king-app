@@ -36,3 +36,8 @@ google-services.json
 # Environment files with sensitive data
 .env
 .env.local
+
+# IDE settings
+.settings/
+.project
+.claude/

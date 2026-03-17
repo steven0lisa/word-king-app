@@ -36,13 +36,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Release APK
-        run: |
-          export KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}
-          export KEY_ALIAS=${{ secrets.KEY_ALIAS }}
-          export KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
-          ./gradlew assembleRelease -x lint --stacktrace
-
       - name: Get version
         id: get_version
         run: |
@@ -52,6 +45,32 @@ jobs:
             VERSION="dev-$(date +'%Y%m%d-%H%M%S')"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          # 提取版本号（如 v1.0.2 -> 1.0.2）
+          VERSION_NAME="${VERSION#v}"
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
+          # 从版本号生成 versionCode（主版本*10000 + 次版本*100 + 修订号）
+          # 例如: 1.0.2 -> 10002, 1.2.10 -> 10210
+          IFS='.' read -ra VERSION_PARTS <<< "$VERSION_NAME"
+          MAJOR="${VERSION_PARTS[0]:-1}"
+          MINOR="${VERSION_PARTS[1]:-0}"
+          PATCH="${VERSION_PARTS[2]:-0}"
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Update version in build.gradle
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # 使用版本号自动替换 build.gradle 中的版本信息
+          sed -i "s/versionCode [0-9]*/versionCode ${{ steps.get_version.outputs.VERSION_CODE }}/" app/build.gradle
+          sed -i "s/versionName \".*\"/versionName \"${{ steps.get_version.outputs.VERSION_NAME }}\"/" app/build.gradle
+          cat app/build.gradle | grep -E "versionCode|versionName"
+
+      - name: Build Release APK
+        run: |
+          export KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}
+          export KEY_ALIAS=${{ secrets.KEY_ALIAS }}
+          export KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+          ./gradlew assembleRelease -x lint --stacktrace
 
       - name: Rename APK
         run: |

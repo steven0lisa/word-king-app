@@ -111,7 +111,20 @@ class GitConfigActivity : AppCompatActivity() {
             binding.progress.visibility = android.view.View.GONE
             binding.btnSync.isEnabled = true
 
-            result.onSuccess {
+            result.onSuccess { syncResult ->
+                // 将远程同步的数据写入本地数据库
+                launch(Dispatchers.IO) {
+                    // 插入词库
+                    if (syncResult.words.isNotEmpty()) {
+                        database.wordDao().insertWords(syncResult.words)
+                    }
+                    // 插入学习记录
+                    if (syncResult.records.isNotEmpty()) {
+                        database.learningRecordDao().insertRecords(syncResult.records)
+                    }
+                    // 插入同步元数据
+                    database.syncMetaDao().insertSyncMeta(syncResult.syncMeta)
+                }
                 Toast.makeText(this@GitConfigActivity, "同步成功", Toast.LENGTH_SHORT).show()
             }.onFailure { e ->
                 Toast.makeText(this@GitConfigActivity, "同步失败：${e.message}", Toast.LENGTH_LONG).show()
